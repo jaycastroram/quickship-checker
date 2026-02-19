@@ -1,0 +1,72 @@
+.stApp {
+  position: relative;
+}
+
+.app-content {
+  padding-top: 24px;
+}
+
+.fsi-splash-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 110px;
+  width: 100%;
+  background: #005596;
+  z-index: 0;
+}
+
+.fsi-splash-side {
+  position: fixed;
+  top: 110px;
+  left: 0;
+  width: 36px;
+  height: calc(100% - 110px);
+  background: #005596;
+  z-index: 0;
+}
+
+.stApp > header,
+.stApp > div {
+  position: relative;
+  z-index: 1;
+}
+
+.app-header {
+  background: #ffffff;
+  border: 1px solid #e6e8eb;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 12px 0 18px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-header .title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #003a63;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.app-header .subtitle {
+  margin: 2px 0 0 0;
+  color: #4b5b68;
+  font-size: 14px;
+}
+
+.logo-slot {
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  background: #f1f3f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7a8794;
+  font-size: 12px;
+  border: 1px dashed #c8d0d8;
+  flex: 0 0 auto;
+}
