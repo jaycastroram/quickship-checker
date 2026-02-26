@@ -1,13 +1,4 @@
-"""
-QuickShipChecker
 
-Lightweight decision helper to determine whether a takeoff should be:
-- Work ordered (pallet build process), or
-- Quick Shipped (sales order only)
-
-This does NOT build pallets or create imports. It only estimates whether
-the takeoff is "worth" palletization based on total volume and SKU count.
-"""
 from __future__ import annotations
 
 import argparse
@@ -35,6 +26,8 @@ DEFAULT_PALLET_THRESHOLD = 10
 
 # Column fallbacks to find SKU and quantity
 SKU_COLUMNS = [
+    "Product #",
+    "product #",
     "sku",
     "item",
     "item_id",
@@ -46,6 +39,8 @@ SKU_COLUMNS = [
     "product number",
 ]
 QTY_COLUMNS = [
+    "FSI Total Order Qty (in Packs)",
+    "fsi total order qty (in packs)",
     "order_cases",
     "cases",
     "case_qty",
@@ -57,12 +52,15 @@ QTY_COLUMNS = [
 ]
 
 EACHES_COLUMNS = [
+    "Enter Order Qty",
+    "enter order qty",
     "fsi total order qty - use for release (in eaches)",
     "fsi total order qty (in eaches)",
     "eaches",
 ]
 
 PACK_QTY_COLUMNS = [
+    "Pack Qty",
     "pack qty",
     "pack_qty",
     "unit of measure (uom)",
@@ -84,12 +82,17 @@ class QuickShipDecision:
     missing_skus: int
     missing_uom_count: int
     missing_uom_samples: List[str]
+    used_sku_db: bool = False
 
 
 def _first_existing_column(columns: List[str], candidates: List[str]) -> Optional[str]:
+    col_set = set(columns)
+    col_lower_to_orig = {c.lower(): c for c in columns}
     for candidate in candidates:
-        if candidate in columns:
+        if candidate in col_set:
             return candidate
+        if candidate.lower() in col_lower_to_orig:
+            return col_lower_to_orig[candidate.lower()]
     return None
 
 
@@ -320,6 +323,7 @@ def evaluate_sales_orders(
         missing_skus=missing_skus,
         missing_uom_count=len(missing_uom_list),
         missing_uom_samples=missing_uom_list[:10],
+        used_sku_db=bool(sku_db_map),
     )
 
 
@@ -457,6 +461,7 @@ def evaluate_takeoff(
         missing_skus=missing_skus,
         missing_uom_count=0,
         missing_uom_samples=[],
+        used_sku_db=bool(sku_db_map),
     )
 
 

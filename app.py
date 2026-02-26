@@ -11,6 +11,7 @@ import streamlit as st
 from QuickShipChecker import (
     evaluate_takeoff,
     evaluate_sales_orders,
+    load_sku_database,
     DEFAULT_CASES_PER_PALLET,
     DEFAULT_SKUS_PER_PALLET,
     DEFAULT_PALLET_THRESHOLD,
@@ -31,9 +32,14 @@ def _read_uploaded_file(uploaded_file) -> pd.DataFrame:
 
 
 def _pick_default_column(columns, candidates) -> Optional[str]:
+    """Pick first candidate that exists in columns (exact or case-insensitive)."""
+    col_set = {c: c for c in columns}
+    col_lower = {c.lower(): c for c in columns}
     for candidate in candidates:
-        if candidate in columns:
+        if candidate in col_set:
             return candidate
+        if candidate.lower() in col_lower:
+            return col_lower[candidate.lower()]
     return None
 
 
@@ -122,6 +128,10 @@ uploaded_file = st.file_uploader(
     key=f"upload_{st.session_state.uploader_key}",
 )
 
+# Default SKU database path (app directory); used unless user uploads an override
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_SKU_DB_PATH = os.path.join(_APP_DIR, "SKU_DATABASE.JSON")
+
 with st.expander("Advanced settings", expanded=False):
     cases_per_pallet = st.number_input(
         "Estimated cases per pallet",
@@ -142,9 +152,14 @@ with st.expander("Advanced settings", expanded=False):
         step=1,
     )
     sku_db_file = st.file_uploader(
-        "SKU database JSON (optional)",
+        "SKU database JSON (optional override)",
         type=["json"],
-        help="JSON map of SKU -> PT_QTY",
+        help="Uses SKU_DATABASE.JSON from app folder by default. Upload here to override.",
+    )
+    sku_prefix = st.text_input(
+        "SKU prefix to strip (Sales Order)",
+        value="3172_",
+        help="Prefix removed from Item/SKU values when using Sales Order input.",
     )
 
 input_mode = st.radio(
@@ -163,45 +178,11 @@ if uploaded_file is not None:
     columns = list(df.columns)
 
     if input_mode == "Takeoff":
-        default_sku = _pick_default_column(columns, SKU_COLUMNS)
-        default_qty = _pick_default_column(columns, QTY_COLUMNS)
-        default_eaches = _pick_default_column(columns, EACHES_COLUMNS)
-        default_pack_qty = _pick_default_column(columns, PACK_QTY_COLUMNS)
-
-        sku_column = st.selectbox(
-            "SKU column",
-            options=columns,
-            index=columns.index(default_sku) if default_sku in columns else 0,
-        )
-        qty_options = ["(auto)"] + columns
-        qty_default_index = (
-            qty_options.index(default_qty) if default_qty in qty_options else 0
-        )
-        qty_column = st.selectbox(
-            "Quantity (cases/packs) column",
-            options=qty_options,
-            index=qty_default_index,
-        )
-        eaches_options = ["(auto/none)"] + columns
-        eaches_default_index = (
-            eaches_options.index(default_eaches) if default_eaches in eaches_options else 0
-        )
-        eaches_column = st.selectbox(
-            "Eaches column (optional)",
-            options=eaches_options,
-            index=eaches_default_index,
-        )
-        pack_qty_options = ["(auto/none)"] + columns
-        pack_qty_default_index = (
-            pack_qty_options.index(default_pack_qty)
-            if default_pack_qty in pack_qty_options
-            else 0
-        )
-        pack_qty_column = st.selectbox(
-            "Pack Qty / UOM column (optional)",
-            options=pack_qty_options,
-            index=pack_qty_default_index,
-        )
+        # Auto-map takeoff: Product #, FSI Total Order Qty (in Packs), Enter Order Qty, Pack Qty
+        sku_column = _pick_default_column(columns, SKU_COLUMNS) or columns[0]
+        qty_column = _pick_default_column(columns, QTY_COLUMNS)
+        eaches_column = _pick_default_column(columns, EACHES_COLUMNS)
+        pack_qty_column = _pick_default_column(columns, PACK_QTY_COLUMNS)
 
         preview_df = _filter_ordered_rows(
             df,
@@ -213,32 +194,15 @@ if uploaded_file is not None:
         st.subheader("Preview (ordered items only)")
         st.dataframe(preview_df.head(50), use_container_width=True)
     else:
-        item_default = "Item" if "Item" in columns else columns[0]
-        qty_default = "Quantity" if "Quantity" in columns else columns[0]
-        display_default = "Display Name" if "Display Name" in columns else columns[0]
-        uom_default = "UOM" if "UOM" in columns else None
-
-        item_column = st.selectbox(
-            "Item/SKU column",
-            options=columns,
-            index=columns.index(item_default) if item_default in columns else 0,
+        # Auto-map sales order columns: SKU, Quantity, Item (display), UOM (no UI)
+        item_column = _pick_default_column(columns, ["SKU", "sku", "Item", "item"]) or columns[0]
+        qty_column = _pick_default_column(columns, ["Quantity", "quantity", "Qty", "qty"]) or columns[0]
+        display_column = _pick_default_column(
+            columns, ["Item", "item", "Display Name", "display name", "Display", "display"]
         )
-        qty_column = st.selectbox(
-            "Quantity column",
-            options=columns,
-            index=columns.index(qty_default) if qty_default in columns else 0,
+        uom_column = _pick_default_column(
+            columns, ["UOM", "uom", "Unit of Measure", "unit of measure"]
         )
-        display_column = st.selectbox(
-            "Display Name column (optional)",
-            options=["(auto/none)"] + columns,
-            index=0 if display_default not in columns else (columns.index(display_default) + 1),
-        )
-        uom_column = st.selectbox(
-            "UOM column (optional)",
-            options=["(auto/none)"] + columns,
-            index=0 if uom_default not in columns else (columns.index(uom_default) + 1),
-        )
-        sku_prefix = st.text_input("SKU prefix to strip", value="3172_")
 
         preview_df = df.copy()
         preview_df[item_column] = preview_df[item_column].astype(str).str.strip()
@@ -251,9 +215,12 @@ if uploaded_file is not None:
 
     if st.button("Evaluate"):
         try:
+            # Use uploaded JSON if provided; otherwise default to SKU_DATABASE.JSON in app dir
             sku_db = None
             if sku_db_file is not None:
                 sku_db = json.loads(sku_db_file.getvalue().decode("utf-8"))
+            else:
+                sku_db = load_sku_database(DEFAULT_SKU_DB_PATH)
             if input_mode == "Takeoff":
                 decision = evaluate_takeoff(
                     df,
@@ -261,13 +228,9 @@ if uploaded_file is not None:
                     skus_per_pallet=int(skus_per_pallet),
                     pallet_threshold=int(pallet_threshold),
                     sku_column=sku_column,
-                    qty_column=None if qty_column == "(auto)" else qty_column,
-                    eaches_column=None
-                    if eaches_column == "(auto/none)"
-                    else eaches_column,
-                    pack_qty_column=None
-                    if pack_qty_column == "(auto/none)"
-                    else pack_qty_column,
+                    qty_column=qty_column,
+                    eaches_column=eaches_column,
+                    pack_qty_column=pack_qty_column,
                     sku_db=sku_db,
                 )
             else:
@@ -277,10 +240,8 @@ if uploaded_file is not None:
                     pallet_threshold=int(pallet_threshold),
                     sku_column=item_column,
                     qty_column=qty_column,
-                    uom_column=None if uom_column == "(auto/none)" else uom_column,
-                    display_name_column=None
-                    if display_column == "(auto/none)"
-                    else display_column,
+                    uom_column=uom_column,
+                    display_name_column=display_column,
                     sku_prefix_to_strip=sku_prefix,
                     sku_db=sku_db,
                 )
@@ -309,6 +270,21 @@ if uploaded_file is not None:
 
         st.caption(decision.reason)
         st.caption(f"AP fill sum: {decision.ap_fraction_sum:.2f}")
+
+        # Explain why PT pallets might be 0 so users can fix data or load SKU DB
+        if decision.pt_pallets == 0:
+            if not decision.used_sku_db:
+                st.info(
+                    "**PT pallets = 0:** No SKU database was loaded. Upload a SKU database JSON (SKU → PT_QTY) in Advanced settings to calculate PT (full) vs AP (partial) pallets."
+                )
+            elif decision.missing_skus >= decision.total_skus:
+                st.warning(
+                    f"**PT pallets = 0:** None of the {decision.total_skus} order SKUs were found in the SKU database. Add these SKUs to the database with a PT_QTY (cases per full pallet) to see PT pallets."
+                )
+            else:
+                st.info(
+                    f"**PT pallets = 0:** SKU database was used ({decision.total_skus - decision.missing_skus} SKUs matched, {decision.missing_skus} missing). No full pallets: for every matched SKU, order cases were less than PT_QTY (cases per full pallet). Remaining volume is counted as AP pallets."
+                )
 
         if st.button("Clear / Start over"):
             st.session_state.uploader_key += 1
