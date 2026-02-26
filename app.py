@@ -19,6 +19,7 @@ from QuickShipChecker import (
     QTY_COLUMNS,
     EACHES_COLUMNS,
     PACK_QTY_COLUMNS,
+    _find_by_keywords,
 )
 
 
@@ -178,11 +179,23 @@ if uploaded_file is not None:
     columns = list(df.columns)
 
     if input_mode == "Takeoff":
-        # Auto-map takeoff: Product #, FSI Total Order Qty (in Packs), Enter Order Qty, Pack Qty
+        # Auto-map takeoff: Product #, FSI Total Order Qty (in Packs), eaches, Pack Qty
         sku_column = _pick_default_column(columns, SKU_COLUMNS) or columns[0]
         qty_column = _pick_default_column(columns, QTY_COLUMNS)
+        if qty_column is None:
+            qty_column = _find_by_keywords(columns, ["fsi", "total", "order", "qty", "pack"])
+        if qty_column is None:
+            qty_column = _find_by_keywords(columns, ["fsi", "total", "order", "qty", "case"])
         eaches_column = _pick_default_column(columns, EACHES_COLUMNS)
+        if eaches_column is None:
+            eaches_column = _find_by_keywords(columns, ["fsi", "total", "order", "qty", "each"])
+        if eaches_column is None:
+            eaches_column = _find_by_keywords(columns, ["fsi", "release", "eaches"])
         pack_qty_column = _pick_default_column(columns, PACK_QTY_COLUMNS)
+        if pack_qty_column is None:
+            pack_qty_column = _find_by_keywords(columns, ["pack", "qty"])
+        if pack_qty_column is None:
+            pack_qty_column = _find_by_keywords(columns, ["unit", "measure"])
 
         preview_df = _filter_ordered_rows(
             df,

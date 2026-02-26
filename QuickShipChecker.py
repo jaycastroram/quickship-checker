@@ -52,9 +52,10 @@ QTY_COLUMNS = [
 ]
 
 EACHES_COLUMNS = [
+    "FSI Total Order Qty - Use for RELEASE (in Eaches)",
+    "fsi total order qty - use for release (in eaches)",
     "Enter Order Qty",
     "enter order qty",
-    "fsi total order qty - use for release (in eaches)",
     "fsi total order qty (in eaches)",
     "eaches",
 ]
