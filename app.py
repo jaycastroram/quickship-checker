@@ -23,12 +23,13 @@ from QuickShipChecker import (
 )
 
 
-def _read_uploaded_file(uploaded_file) -> pd.DataFrame:
+def _read_uploaded_file(uploaded_file, sheet_name: Optional[str] = None) -> pd.DataFrame:
+    """Read uploaded CSV or Excel file. For Excel, an optional sheet name can be provided."""
     name = uploaded_file.name.lower()
     data = uploaded_file.getvalue()
     buffer = io.BytesIO(data)
     if name.endswith((".xlsx", ".xls")):
-        return pd.read_excel(buffer)
+        return pd.read_excel(buffer, sheet_name=sheet_name)
     return pd.read_csv(buffer)
 
 
@@ -171,7 +172,19 @@ input_mode = st.radio(
 
 if uploaded_file is not None:
     try:
-        df = _read_uploaded_file(uploaded_file)
+        # Allow selecting a worksheet when an Excel file has multiple sheets.
+        sheet_name: Optional[str] = None
+        file_name = uploaded_file.name.lower()
+        if file_name.endswith((".xlsx", ".xls")):
+            data = uploaded_file.getvalue()
+            excel = pd.ExcelFile(io.BytesIO(data))
+            sheet_names = excel.sheet_names
+            sheet_name = st.selectbox(
+                "Worksheet",
+                options=sheet_names,
+                index=0,
+            )
+        df = _read_uploaded_file(uploaded_file, sheet_name=sheet_name)
     except Exception as exc:
         st.error(f"Failed to read file: {exc}")
         st.stop()
@@ -200,9 +213,9 @@ if uploaded_file is not None:
         preview_df = _filter_ordered_rows(
             df,
             sku_column=sku_column,
-            qty_column=None if qty_column == "(auto)" else qty_column,
-            eaches_column=None if eaches_column == "(auto/none)" else eaches_column,
-            pack_qty_column=None if pack_qty_column == "(auto/none)" else pack_qty_column,
+            qty_column=qty_column,
+            eaches_column=eaches_column,
+            pack_qty_column=pack_qty_column,
         )
         st.subheader("Preview (ordered items only)")
         st.dataframe(preview_df.head(50), use_container_width=True)

@@ -98,7 +98,19 @@ def _first_existing_column(columns: List[str], candidates: List[str]) -> Optiona
 
 
 def _normalize_name(name: str) -> str:
-    return " ".join(str(name).strip().lower().split())
+    """
+    Normalize column names for fuzzy matching.
+
+    - Lowercase
+    - Collapse whitespace
+    - Normalize common synonyms (e.g. \"quantity\" -> \"qty\", \"eaches\" -> \"each\")
+    """
+    norm = " ".join(str(name).strip().lower().split())
+    # Normalize a few common variants so keyword searches are more forgiving
+    norm = norm.replace("quantity", "qty")
+    norm = norm.replace("quantities", "qty")
+    norm = norm.replace("eaches", "each")
+    return norm
 
 
 def _find_by_keywords(columns: List[str], keywords: List[str]) -> Optional[str]:
