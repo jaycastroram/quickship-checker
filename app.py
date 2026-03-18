@@ -132,7 +132,7 @@ uploaded_file = st.file_uploader(
 
 st.link_button(
     "GET SALES ORDER HERE",
-    "https://4119972.app.netsuite.com/app/common/search/searchresults.nl?searchtype=Transaction&Transaction_STATUS=&Transaction_NUMBERTEXT=1020185&CUSTBODY_OZLINK_ENTITY_NAME=&Transaction_MEMO=&Transaction_OTHERREFNUM=&Transaction_SALESREP=%40ALL%40&IT_Item_DISPLAYNAME=&Transaction_DATECREATEDrange=ALL&Transaction_DATECREATEDfrom=&Transaction_DATECREATEDfromrel_formattedValue=&Transaction_DATECREATEDfromrel=&Transaction_DATECREATEDfromreltype=DAGO&Transaction_DATECREATEDto=&Transaction_DATECREATEDtorel_formattedValue=&Transaction_DATECREATEDtorel=&Transaction_DATECREATEDtoreltype=DAGO&style=NORMAL&Transaction_NUMBERTEXTtype=CONTAINS&CUSTBODY_OZLINK_ENTITY_NAMEtype=CONTAINS&Transaction_MEMOtype=CONTAINS&Transaction_OTHERREFNUMtype=CONTAINS&IT_Item_DISPLAYNAMEtype=CONTAINS&Transaction_DATECREATEDmodi=WITHIN&Transaction_DATECREATED=ALL&report=&grid=&dle=F&sortcol=Transaction_TRANDATE_raw&sortdir=DESC&csv=HTML&OfficeXML=F&pdf=&size=50&_csrf=Lbvvk43KmWssnr_baxkHc34jUevIXKSdTJHckooHdbT8SmPOFGoTGFcYJBVv3L4MSRg7kH_lf0WJM22ATSQxhfSxneqIu_zrj96EYvgeabSxdgcO8qF28zPq7TMjbndaiYo1R42LvPze1NtgNlKhtvRKoJYBGf5pA6mDu3U8Igw%3D&twbx=F",
+    "https://4119972.app.netsuite.com/app/common/search/searchresults.nl?searchid=6337&whence=",
 )
 
 # Default SKU database path (app directory); used unless user uploads an override
